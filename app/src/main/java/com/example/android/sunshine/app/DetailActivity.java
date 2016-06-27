@@ -1,8 +1,14 @@
 package com.example.android.sunshine.app;
 
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.widget.ShareActionProvider;
@@ -62,7 +68,7 @@ public class DetailActivity extends ActionBarActivity {
     /**
      * A placeholder fragment containing a simple view.
      */
-    public static class DetailFragment extends Fragment {
+    public static class DetailFragment extends Fragment implements LoaderManager.LoaderCallbacks<Cursor>{
 
         private ShareActionProvider mShareActionProvider;
         private final String LOG_TAG = DetailFragment.class.getSimpleName();
@@ -70,6 +76,9 @@ public class DetailActivity extends ActionBarActivity {
 
         private View rootView;
         private String forecastStr;
+        private String forecastUri;
+
+        private final int DETAL_LOADER_ID = 0;
 
         public DetailFragment() {
         }
@@ -105,9 +114,11 @@ public class DetailActivity extends ActionBarActivity {
 
             rootView = inflater.inflate(R.layout.fragment_detail, container, false);
             Intent detailIntent = getActivity().getIntent();
-            forecastStr = detailIntent.getStringExtra(Intent.EXTRA_TEXT);
-            TextView detailTV = (TextView) rootView.findViewById(R.id.detail_msg);
-            detailTV.setText(forecastStr);
+
+            if (detailIntent != null) {
+                forecastUri = detailIntent.getDataString();
+            }
+
             return rootView;
         }
 
@@ -118,6 +129,52 @@ public class DetailActivity extends ActionBarActivity {
             shareIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
             shareIntent.setType("text/plain");
             return shareIntent;
+        }
+
+        @Override
+        public void onActivityCreated(@Nullable Bundle savedInstanceState) {
+            getLoaderManager().initLoader(DETAL_LOADER_ID, null, this);
+            super.onActivityCreated(savedInstanceState);
+        }
+
+        @Override
+        public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+            return new CursorLoader(getActivity(),
+                    Uri.parse(forecastUri),
+                    ForecastFragment.FORECAST_COLUMNS,
+                    null, null, null);
+        }
+
+        @Override
+        public void onLoaderReset(Loader<Cursor> loader) {
+
+        }
+
+        @Override
+        public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+            data.moveToFirst();
+            forecastStr = convertCursorRowToUXFormat(data);
+            TextView detailTV = (TextView) rootView.findViewById(R.id.detail_msg);
+            detailTV.setText(forecastStr);
+            if (mShareActionProvider != null) {
+                mShareActionProvider.setShareIntent(createShareIntent());
+            }
+
+        }
+        private String convertCursorRowToUXFormat(Cursor cursor) {
+            // get row indices for our cursor
+            String highAndLow = formatHighLows(
+                    cursor.getDouble(ForecastFragment.COL_WEATHER_MAX_TEMP),
+                    cursor.getDouble(ForecastFragment.COL_WEATHER_MIN_TEMP));
+
+            return Utility.formatDate(cursor.getLong(ForecastFragment.COL_WEATHER_DATE)) +
+                    " - " + cursor.getString(ForecastFragment.COL_WEATHER_DESC) +
+                    " - " + highAndLow;
+        }
+        private String formatHighLows(double high, double low) {
+            boolean isMetric = Utility.isMetric(getActivity());
+            String highLowStr = Utility.formatTemperature(high, isMetric) + "/" + Utility.formatTemperature(low, isMetric);
+            return highLowStr;
         }
     }
 }

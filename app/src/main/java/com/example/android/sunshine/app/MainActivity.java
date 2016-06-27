@@ -12,13 +12,17 @@ import android.view.MenuItem;
 
 public class MainActivity extends ActionBarActivity {
 
+    private String mLocation;
+    private final String FORECASTFRAGMENT_TAG = "forecast_fragment";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mLocation = Utility.getPreferredLocation(this);
         setContentView(R.layout.activity_main);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
-                    .add(R.id.container, new ForecastFragment())
+                    .add(R.id.container, new ForecastFragment(), FORECASTFRAGMENT_TAG)
                     .commit();
         }
     }
@@ -28,6 +32,19 @@ public class MainActivity extends ActionBarActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.main, menu);
         return true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        String currentLoc = Utility.getPreferredLocation(this);
+        if (!currentLoc.equals(mLocation)) {
+            ForecastFragment ff = (ForecastFragment) getSupportFragmentManager().findFragmentByTag(FORECASTFRAGMENT_TAG);
+            if (ff != null) {
+                ff.onLocationChanged();
+            }
+            mLocation = currentLoc;
+        }
     }
 
     @Override
@@ -62,5 +79,6 @@ public class MainActivity extends ActionBarActivity {
             startActivity(mapIntent);
         }
     }
+
 
 }
